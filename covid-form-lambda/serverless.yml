@@ -14,7 +14,7 @@
 service: covid-form
 # app and org for use with dashboard.serverless.com
 app: covid-form
-org: govau
+org: malmas18
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
@@ -49,13 +49,9 @@ provider:
 #    variable1: value1
 
 # you can add packaging information here
-#package:
-#  include:
-#    - include-me.py
-#    - include-me-dir/**
-#  exclude:
-#    - exclude-me.py
-#    - exclude-me-dir/**
+package:
+ exclude:
+   - localhost/**
 
 functions:
   accept_form_response:
@@ -68,7 +64,7 @@ functions:
          path: form/accept-response
          method: post
      - websocket: $connect
-     - s3: ${env:BUCKET}
+    #  - s3: ${env:BUCKET}
 #      - schedule: rate(10 minutes)
 #      - sns: greeter-topic
 #      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
@@ -110,8 +106,8 @@ functions:
       - http:
           path: get_csv
           method: get
-      - websocket: $connect
-      - s3: ${env:BUCKET}
+      # - websocket: $connect
+      # - s3: ${env:BUCKET}
   #      - schedule: rate(10 minutes)
   #      - sns: greeter-topic
   #      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
@@ -141,8 +137,13 @@ functions:
   
   #    Define function environment variables here
     environment:
-      api_keys: ${env:API_KEYS}
-
+      AWS_REGION: ${env:AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+      AWS_S3_URL: ${env:AWS_S3_URL}
+      RESPONSES_BUCKET_NAME: ${env:RESPONSES_BUCKET_NAME}
+      CSV_BUCKET_NAME: ${env:CSV_BUCKET_NAME}
+      API_KEYS: ${env:API_KEYS}
 
 
 generate_csv:
@@ -155,7 +156,7 @@ generate_csv:
     #     path: get_data
     #     method: post
     # - websocket: $connect
-    - s3: ${env:BUCKET}
+    # - s3: ${env:BUCKET}
     - schedule: rate(10 minutes)
 #      - sns: greeter-topic
 #      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
@@ -198,3 +199,7 @@ generate_csv:
 #     NewOutput:
 #       Description: "Description for the output"
 #       Value: "Some output value"
+
+plugins:
+  - serverless-python-requirements
+  - serverless-offline
