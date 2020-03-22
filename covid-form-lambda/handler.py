@@ -1,5 +1,6 @@
 import boto3
 from botocore.exceptions import ClientError
+import csv
 import io
 import json
 import logging
@@ -9,15 +10,15 @@ import urllib.parse
 import uuid
 
 
-AWS_REGION=os.environ.get('AWS_REGION', None)
-AWS_ACCESS_KEY_ID=os.environ.get('AWS_ACCESS_KEY_ID', None)
-AWS_SECRET_ACCESS_KEY=os.environ.get('AWS_SECRET_ACCESS_KEY', None)
-AWS_S3_URL=os.environ.get('AWS_S3_URL', None)
-RESPONSES_BUCKET_NAME=os.environ.get('BUCKET_NAME', None)
-RESPONSES_PATH = RESPONSES_BUCKET_NAME + '/responses/'
-CSV_BUCKET_NAME=os.environ.get('BUCKET_NAME', None) + '/csv'
-API_KEYS=os.environ.get('API_KEYS', None)
-CSV_NAME='cases.csv'
+AWS_REGION = os.environ.get('AWS_REGION', None)
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', None)
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', None)
+AWS_S3_URL = os.environ.get('AWS_S3_URL', None)
+BUCKET_NAME = os.environ.get('BUCKET_NAME', None)
+RESPONSES_PATH = BUCKET_NAME + '/responses/'
+PROCESSED_PATH = BUCKET_NAME + '/processed/'
+CSV_PATH = BUCKET_NAME + '/csv/cases.csv'
+API_KEYS = os.environ.get('API_KEYS', None)
 ACCEPTED_FIELDS = ['fname', 'lname', 'dob']
 
 def get_s3_client():
@@ -48,7 +49,7 @@ def accept_form_response(event, context):
         now = pendulum.now().format('YYYYMMDDHHmmss')
         file_name = now + '-' + str(uuid.uuid1()) + '.json'
         with io.BytesIO(json.dumps(for_saving).encode('utf-8')) as f:
-            response = s3_client.upload_fileobj(f, RESPONSES_BUCKET_NAME, RESPONSES_PATH + file_name)
+            response = s3_client.upload_fileobj(f, BUCKET_NAME, RESPONSES_PATH + file_name)
     except ClientError as e:
         logging.error(e)
 
@@ -68,37 +69,79 @@ def get_csv(event, context):
     }
     # TODO add api key checks
     s3_client = get_s3_client()
-    try:
-        with open(CSV_NAME, 'rb') as f:
-            s3.download_fileobj(CSV_BUCKET_NAME, CSV_NAME, f)
-    except ClientError as e:
-        logging.error(e)
+    with io.BytesIO() as csvfile:
+        try:
+            s3_client.download_fileobj(BUCKET_NAME, CSV_PATH, csvfile)
+            binary_data = csvfile.getvalue()
+            current_csv_content = binary_data.decode('UTF-8')
+        except ClientError as e:
+            if e.response['Error']['Code'] != "404":
+                logging.error(e)
 
     response = {
         "statusCode": 200,
-        "body": json.dumps(body)
+        "body": current_csv_content,
+        "contentType": "application/csv; charset=utf-8"
     }
-
     return response
 
 
 # generate csv file
-# def generate_csv(event, context):
-#     s3_client = get_s3_client()
-#     try:
-#         paginator = s3_client.get_paginator('list_objects')
-#         page_iterator = paginator.paginate(Bucket=RESPONSES_BUCKET_NAME)
-#         for page in page_iterator:
-#             for content in page['Contents']:
-#                 file_name = content['Key']
-#                 logging.info(file_name)
-#                 with open(file_name, 'wb') as f:
-#                     s3.download_fileobj(RESPONSES_BUCKET_NAME, file_name, f)
-#                     binary_data = f.read()
-#                     text = binary_data.decode('utf-8')
-        
+def generate_csv(event, context):
+    s3_client = get_s3_client()
+    downloaded_data = []
+    processed_list = []
+    csv_columns = ['fname', 'lname', 'dob']
+    try:
+        paginator = s3_client.get_paginator('list_objects_v2')
+        page_iterator = paginator.paginate(Bucket=BUCKET_NAME, Prefix=RESPONSES_PATH)
+        for page in page_iterator:
+            for content in page['Contents']:
+                key = content['Key']
+                file_name = key.replace(RESPONSES_PATH, '')
+                file_found = True
 
-#         with open(CSV_NAME, "rb") as f:
-#             response = s3_client.upload_fileobj(CSV_BUCKET_NAME, CSV_NAME)
-#     except ClientError as e:
-#         logging.error(e)
+                with io.BytesIO() as exiting_file:
+                    try:
+                        s3_client.download_fileobj(BUCKET_NAME, PROCESSED_PATH + file_name, exiting_file)
+                    except ClientError as e:
+                        if e.response['Error']['Code'] == "404":
+                            file_found = False
+                        else:
+                            logging.error(e)
+                
+                if not file_found:
+                    processed_list.append(file_name)
+                    with io.BytesIO() as f:
+                        s3_client.download_fileobj(BUCKET_NAME, key, f)
+                        binary_data = f.getvalue()
+                        text = binary_data.decode('UTF-8')
+                        downloaded_data.append(json.loads(text))
+        
+        if processed_list:
+            with io.BytesIO() as csvfile:
+                try:
+                    s3_client.download_fileobj(BUCKET_NAME, CSV_PATH, csvfile)
+                    binary_data = csvfile.getvalue()
+                    current_csv_content = binary_data.decode('UTF-8')
+                except ClientError as e:
+                    if e.response['Error']['Code'] != "404":
+                        logging.error(e)
+
+                with io.StringIO() as string_io:
+                    writer = csv.DictWriter(string_io, fieldnames=csv_columns)
+                    for _ in downloaded_data:
+                        writer.writerow(_)
+                    current_csv_content += string_io.getvalue()
+
+                with io.BytesIO(current_csv_content.encode('utf-8')) as upload:
+                    response = s3_client.upload_fileobj(upload, BUCKET_NAME, CSV_PATH)
+
+            for file_name in processed_list:
+                s3_client.copy({
+                    'Bucket': BUCKET_NAME,
+                    'Key': RESPONSES_PATH + file_name
+                }, BUCKET_NAME, PROCESSED_PATH + file_name)
+    except ClientError as e:
+        logging.error(e)
+

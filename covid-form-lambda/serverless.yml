@@ -63,7 +63,7 @@ functions:
      - http:
          path: form/accept-response
          method: post
-     - websocket: $connect
+    #  - websocket: $connect
     #  - s3: ${env:BUCKET}
 #      - schedule: rate(10 minutes)
 #      - sns: greeter-topic
@@ -93,8 +93,13 @@ functions:
 #            path: /hello
 
 #    Define function environment variables here
-  #  environment:
-  #    keys: "a,b,c"
+    environment:
+      AWS_REGION: ${env:AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+      AWS_S3_URL: ${env:AWS_S3_URL}
+      BUCKET_NAME: ${env:BUCKET_NAME}
+      API_KEYS: ${env:API_KEYS}
 
 
   get_csv:
@@ -106,6 +111,9 @@ functions:
       - http:
           path: get_csv
           method: get
+          response:
+            headers:
+              Content-Type: "'application/csv'"
       # - websocket: $connect
       # - s3: ${env:BUCKET}
   #      - schedule: rate(10 minutes)
@@ -141,23 +149,25 @@ functions:
       AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
       AWS_S3_URL: ${env:AWS_S3_URL}
-      RESPONSES_BUCKET_NAME: ${env:RESPONSES_BUCKET_NAME}
-      CSV_BUCKET_NAME: ${env:CSV_BUCKET_NAME}
+      BUCKET_NAME: ${env:BUCKET_NAME}
       API_KEYS: ${env:API_KEYS}
 
 
-generate_csv:
-  handler: handler.generate_csv
-#    The following are a few example events you can configure
-#    NOTE: Please make sure to change your handler code to work with those events
-#    Check the event documentation for details
-  events:
+  generate_csv:
+    handler: handler.generate_csv
+  #    The following are a few example events you can configure
+  #    NOTE: Please make sure to change your handler code to work with those events
+  #    Check the event documentation for details
+    events:
+      - http:
+          path: generate_csv
+          method: get
     # - http:
     #     path: get_data
     #     method: post
     # - websocket: $connect
     # - s3: ${env:BUCKET}
-    - schedule: rate(10 minutes)
+      - schedule: rate(10 minutes)
 #      - sns: greeter-topic
 #      - stream: arn:aws:dynamodb:region:XXXXXX:table/foo/stream/1970-01-01T00:00:00.000
 #      - alexaSkill: amzn1.ask.skill.xx-xx-xx-xx
@@ -185,8 +195,13 @@ generate_csv:
 #            path: /hello
 
 #    Define function environment variables here
-  # environment:
-  #   keys: ${env:API_KEYS}
+    environment:
+      AWS_REGION: ${env:AWS_REGION}
+      AWS_ACCESS_KEY_ID: ${env:AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${env:AWS_SECRET_ACCESS_KEY}
+      AWS_S3_URL: ${env:AWS_S3_URL}
+      BUCKET_NAME: ${env:BUCKET_NAME}
+      API_KEYS: ${env:API_KEYS}
 
 # you can add CloudFormation resource templates here
 #resources:
