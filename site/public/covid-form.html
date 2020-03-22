@@ -124,12 +124,19 @@
       <h2>Key updates</h2>
     </div>
     <form action="http://localhost:3000/dev/form/accept-response" method="POST">
-        <label for="fname">First name:</label><br>
-        <input type="text" id="fname" name="fname" value="John"><br>
-        <label for="lname">Last name:</label><br>
-        <input type="text" id="lname" name="lname" value="Doe"><br><br>
-        <label for="dob">Last name:</label><br>
-        <input type="date" id="dob" name="dob"><br><br>
+        <label for="positive-result">When did you receive your positive result?</label><br />
+        <input type="date" id="positive-result" name="positive-result" value=""><br />
+        <label for="dob">Last name:</label><br />
+        <input type="date" id="dob" name="dob"><br />
+
+        <input type="radio" id="male" name="gender" value="male">
+        <label for="male">Male</label><br>
+        <input type="radio" id="female" name="gender" value="female">
+        <label for="female">Female</label><br>
+        <input type="radio" id="other" name="gender" value="other">
+        <label for="other">Other</label>
+
+
         <input type="submit" value="Submit">
         <button class="btn btn-lg btn-primary btn-block" type="submit">Sign in</button>
       </form> 

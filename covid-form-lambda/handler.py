@@ -69,6 +69,7 @@ def get_csv(event, context):
     }
     # TODO add api key checks
     s3_client = get_s3_client()
+    current_csv_content = ''
     with io.BytesIO() as csvfile:
         try:
             s3_client.download_fileobj(BUCKET_NAME, CSV_PATH, csvfile)
@@ -120,6 +121,7 @@ def generate_csv(event, context):
         
         if processed_list:
             with io.BytesIO() as csvfile:
+                current_csv_content = ''
                 try:
                     s3_client.download_fileobj(BUCKET_NAME, CSV_PATH, csvfile)
                     binary_data = csvfile.getvalue()
@@ -144,4 +146,3 @@ def generate_csv(event, context):
                 }, BUCKET_NAME, PROCESSED_PATH + file_name)
     except ClientError as e:
         logging.error(e)
-
