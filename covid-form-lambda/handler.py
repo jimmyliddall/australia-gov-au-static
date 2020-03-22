@@ -54,7 +54,10 @@ def accept_form_response(event, context):
         logging.error(e)
 
     response = {
-        "statusCode": 200,
+        "statusCode": 301,
+        'headers': {
+            'location': 'http://localhost:9090/covid-form-submitted.html'
+        }
         # "body": json.dumps(body)
     }
 
@@ -82,7 +85,9 @@ def get_csv(event, context):
     response = {
         "statusCode": 200,
         "body": current_csv_content,
-        "contentType": "application/csv; charset=utf-8"
+        'headers': {
+            "content-type": "application/csv; charset=utf-8"
+        }
     }
     return response
 
